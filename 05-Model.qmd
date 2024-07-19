@@ -1,0 +1,109 @@
+```{r}
+#| include: false
+#| cache: false
+library(ecode)
+```
+
+# Model Validation and Calibration
+
+## Data Input
+
+Validation and calibration are two important processes to ensure the accuracy of a model. **Model validation** is the process of confirming that the model correctly predicts the real observations. **Calibration**, on the other hand, is the process of estimating model parameters based on available data. Calibration is perhaps also known as **data assimilation**, a process of updating models according to the real observations.
+
+To implement these processes, the first step is to input observation data. Consider a tree population started to be affected by a pathogen at time *t* = 0 (year). According to historical evidence, the pathogen is highly virulent, and has removed many trees in other places. The local council is therefore worrying how the disease will affect the tree population, and how much time is left for the society to adapt to the tree disease, minimising its impact on public safety and biodiversity. Scientists start to monitor the disease at *t* = 0, with four plots established in the woodland, each having 15, 25, 35, and 45 tree individuals. All plots have 5 tree saplings, with the remaining individuals being adults that are able to reproduce. In the third year of the epidemics, scientists recorded disease incidence rates for each plot, namely the number of infectious trees (i.e. trees showing disease symptoms) divided by the total population size. They found an incidence rate of 0.4, 0.8, 0.9, and 0.95 for each plot, respectively. Now they want to model the disease impact on tree population with a four-dimensional ODE,
+
+$$
+\frac{dX_C}{dt}=\nu(X_A+Y_A)-\beta X_C(Y_C+Y_A)-(\mu+g)X_C
+$$
+
+$$
+\frac{dY_C}{dt}=\beta X_C(Y_C+Y_A)-(\mu+g+\rho)Y_C
+$$
+
+$$
+\frac{dX_A}{dt}=gX_C-\beta X_A(Y_C+Y_A)
+$$
+
+$$
+\frac{dY_A}{dt}=\beta X_A(Y_C+Y_A)+gY_C-\rho Y_A
+$$
+
+where $X_C$ is the number of susceptible tree saplings (susceptible means that a tree has yet been infected), $Y_C$ the infectious tree saplings (we assume that once a tree is infected it is able to transmit the disease, thus being infectious), $X_A$ the susceptible adult trees, and $Y_A$ the infectious adult trees. Model parameter include per-capita reproduction rate $\nu$, disease transmission rate $\beta$, natural mortality rate $\mu$, growth rate g, and disease-caused tree mortality rate $\rho$. Now we assume that all the parameters have been estimated based on available evidence, but scientists are worrying whether the value of $\beta$ is correctly estimated, because it significantly affects how fast the disease would progress in the tree population. Therefore, scientists want to use the disease incidence data to see (1) whether the model predicts the observed data (**validation**) and, (2) how to adjust the value of parameter $\beta$ to minimise the discrepancy between model prediction and observations (**calibration or data assimilation**). Firstly, we create the disease model using the following code,
+
+```{r}
+dX_Cdt <- function(X_C, Y_C, X_A, Y_A, nu = 0.15, beta = 0.1, mu = 0.15, g = 0.04)
+  nu * (X_A + Y_A) - beta * X_C * (Y_C + Y_A) - (mu + g) * X_C
+
+dY_Cdt <- function(X_C, Y_C, Y_A, beta = 0.1, mu = 0.15, g = 0.04, rho = 0.2)
+  beta * X_C * (Y_C + Y_A) - (mu + g + rho) * Y_C
+
+dX_Adt <- function(X_C, Y_C, X_A, Y_A, beta = 0.1, g = 0.04)
+  g * X_C - beta * X_A * (Y_C + Y_A)
+
+dY_Adt <- function(X_A, Y_C, Y_A, beta = 0.1, g = 0.04, rho = 0.2)
+  beta * X_A * (Y_C + Y_A) + g * Y_C - rho * Y_A
+
+x <- eode(dX_Cdt = dX_Cdt, dY_Cdt = dY_Cdt, dX_Adt = dX_Adt, dY_Adt = dY_Adt,
+          constraint = c("X_C>=0","Y_C>=0","X_A>=0","Y_A>=0"))
+
+```
+
+To input the observation data, we should create a ‘pdata’ object using its constructor function,
+
+```{r}
+training_data <- pdata(
+  x,
+  init = data.frame(X_A = c(9, 19, 29, 39),
+                    Y_A = c(1, 1, 1, 1),
+                    X_C = c(5, 5, 5, 5),
+                    Y_C = c(0, 0, 0, 0)),
+                    t = c(3, 3, 3, 3),
+  lambda = data.frame(incidence = c(0.4, 0.8, 0.9, 0.95)),
+  formula = c("incidence = (Y_A + Y_C)/(X_A + X_C + Y_A + Y_C)")
+)
+training_data 
+```
+
+The first argument of the `pdata()` function specifies the ODE system under concern. The second argument should be an object of `data.frame` type, which specifies the initial context for each data point. For example, the first plot has 15 tree individuals (of which 5 are tree saplings) at t = 0, and has a disease incidence rate of 0.4 at t = 3. Therefore, the data point 0.4 is embedded in the context of $x(0) = (9, 1, 5, 0)^T$, where $Y_A$ = 1 because we assume that there is an individual infected at t = 0. The third argument is a vector, whose length should be the same as the row number of the data frame (the second argument). It specifies the time of observation. The fourth argument gives the observation data, using the `data.frame` format. 
+
+Here, we only concern the disease incidence rate, so the data frame has one column. Sometimes we may wish to add more variables such as tree mortality rate. In that case, the data frame should have two columns, the first one being disease incidence rate and the second one the tree mortality. The last argument `formula` should be a vector that specifies how variables can be calculated from model outputs. For example, the disease incidence rate is the total number of infectious individuals divided by total population size. If both the disease incidence data and tree mortality data are used, this argument should be a vector of two elements. The second element should specify how tree mortality rate is calculated. Once a variable is calculated from model predictions, it can be compared with real observations to assess the model performance.
+
+## The Loss Function
+
+Discrepancy between model prediction and real data can be measured by a quadratic loss function. This is commonly used for model validation. Function `eode_lossf()` can implement this process, 
+
+$$
+Loss\ function = (O_1 – M_1)^2 + … + (O_n – M_n)^2 
+$$
+
+where $O_i$ is the i-th data point and $M_i$ is the corresponding model prediction.
+
+```{r}
+eode_lossf(x, pdat = training_data)
+```
+
+The result shows the sum of squares between predicted and measured disease incidence rate (varies from 0–1).
+
+## Grid Search
+
+In Section 5.1, we created an ODE model with a disease transmission rate $\beta=0.1$. However, this value may not be optimal for predicting the disease incidence data. Now we wish to minimise this gap by model calibration. One way is to use the grid search method, where we decide a plausible range of parameters based on prior experience. We run the model with all possible parameter values, and calculate the discrepancy between model predictions and real observations. Finally, we choose the parameter value that minimises this discrepancy. 
+
+Now, we run the model with different values of $\beta$ from 0.05 to 0.15 with a step increment of 0.01.
+
+```{r}
+#| message: true
+res <- eode_gridSearch(x, pdat = training_data, space = list(beta = seq(0.05,0.15,0.01)))
+```
+
+It is apparent that the optimal value of $\beta$ is 0.11.
+
+## Simulated Annealing
+
+Another way is a machine learning based method – simulated annealing. It is a probabilistic technique to find the global optimum. The process starts with high ‘potential energy’, which means that parameters are disturbed at a strong magnitude. A model with updated parameter values will be run and a new loss function will be calculated. If the new loss function is smaller than the old one, the updated model is retained. Otherwise, the previous model will be used instead. This process will be repeated, but with weaker disturbance force, until the ‘potential energy’ falls to zero. Now we disturb $\beta$ with an initial magnitude of 5% (i.e. the updated $\beta$ value will deviate ±5% from the previous value), and the whole annealing processes has 20 steps (i.e. the magnitude reduces by 0.25% for each step), then,
+
+```{r}
+#| message: true
+res <- eode_simuAnnealing(x, pdat = training_data, paras = "beta", max_disturb = 0.05, AnnN = 20)
+```
+
+After 20 steps of simulated annealing, the algorithm also obtained an optimal value of \beta=0.11.

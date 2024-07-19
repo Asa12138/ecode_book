@@ -1,0 +1,96 @@
+project:
+  type: book
+  pre-render: "_common.R"
+
+book:
+  title: "Ordinary Differential Equation Modelling with 'ecode'"
+  author:
+    - name: "Haoran Wu"
+      orcid: "0000-0001-9449-6112"
+      email: "haoran.wu@ouce.ox.ac.uk"
+      affiliations:
+        - name: "Environmental Change Institute, School of Geography and the Environment,
+          University of Oxford, South Parks Road, United Kingdom"
+    - name: "Chen Peng"
+      orcid: "0000-0002-9449-7606"
+      email: "pengchen2001@zju.edu.cn"
+      affiliations:
+        - name: "Life Sciences Institute, Zhejiang University, Hangzhou, Zhejiang 310030, China"
+  # affiliations:
+  #   - id: oxford
+  #     name: "Environmental Change Institute, School of Geography and the Environment,
+  #       University of Oxford, South Parks Road, United Kingdom"
+  #   - id: zhejiang
+  #   - name: "Life Sciences Institute, Zhejiang University, Hangzhou, Zhejiang 310030, China"
+  # filters:
+  #   - authors-block
+  date: "7/20/2024"
+  description: ""
+  page-navigation: true
+  search: true
+  # repo-url: https://github.com/Asa12138/MetaNet_q_book
+  repo-actions: [issue, source]
+  # downloads: [pdf, epub]
+  open-graph: true
+  chapters:
+    - index.qmd
+    - 01-Basic.qmd
+    - 02-ODE.qmd
+    - 03-Analytical.qmd
+    - 04-Numerical.qmd
+    - 05-Model.qmd
+    - 06-future.qmd
+    - 07-references.qmd
+  # appendices:
+  #   - resources.qmd
+  #   - references.qmd
+
+execute:
+  cache: true
+  echo: true
+  warning: false
+  message: false
+  freeze: auto
+
+knitr:
+  opts_chunk:
+    # comment: ""
+    out.width: "100%"
+    echo: TRUE
+    collapse: TRUE
+    paged.print: TRUE
+
+
+bibliography: packages.bib
+
+citation:
+  license: "CC BY"
+  type: book
+  author: Haoran Wu1*, Chen Peng2
+  collection-title: "Ordinary Differential Equation Modelling with 'ecode'"
+  issued: 2024-02-01
+  abstract: |
+    This is a tutorial for Ordinary Differential Equation Modelling with 'ecode'
+
+format:
+  html:
+    include-in-header: in-line_math_mode.html
+    fig-width: 5.5
+    fig-height: 4
+    mermaid:
+      theme: forest
+    theme:
+      light: [default, theme.scss]
+      dark: [default, darkly, theme.scss]
+    # mainfont: Roboto
+    # monofont: Fira Mono
+    number-sections: true
+    code-link: true
+    reference-links: true
+    reference-location: margin
+    number-depth: 2
+    crossref:
+      chapters: true
+
+editor: source
+
