@@ -36,10 +36,3 @@ You can install the development version of `ecode` from
 devtools::install_github("HaoranPopEvo/ecode")
 ```
 
-
-```{r include=FALSE}
-# automatically create a bib database for R packages
-knitr::write_bib(c(
-  .packages(), 'bookdown', 'knitr', 'rmarkdown'
-), 'packages.bib')
-```

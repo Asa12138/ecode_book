@@ -21,3 +21,5 @@ docs/
 # RStudio Connect folder
 rsconnect/
 
+
+/.quarto/
